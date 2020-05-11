@@ -1,0 +1,26 @@
+{
+  "name": "web-scraper",
+  "version": "1.0.0",
+  "description": "node.js webscraping",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Soma-dev0808/node-web-scraper.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Soma-dev0808/node-web-scraper/issues"
+  },
+  "homepage": "https://github.com/Soma-dev0808/node-web-scraper#readme",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "cheerio": "^1.0.0-rc.3",
+    "google-spreadsheet": "^3.0.11",
+    "puppeteer": "^3.0.4"
+  }
+}
