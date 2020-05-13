@@ -1,12 +1,14 @@
 const { GoogleSpreadsheet } = require('google-spreadsheet');
+const dotenv = require('dotenv');
+dotenv.config()
 
 let doc = null
 let sheet = null
-let sheetHeader = ['title', 'url']
+let sheetHeader = null
 
 // Load sheet info by sheet id from spread sheet url
 async function googleFetchInfo() {
-    doc = new GoogleSpreadsheet('1Q13x43cxnxN31hHWtw5fwPLAQ3c-OXA_byzuUZNiX8Y');
+    doc = new GoogleSpreadsheet(process.env.SPREAD_SHEET);
     try {
         await doc.useServiceAccountAuth(require('../client_secret.json'))
         await doc.loadInfo();
@@ -14,6 +16,11 @@ async function googleFetchInfo() {
     catch (err) {
         throw new Error(err)
     }
+}
+
+//Add new sheet
+async function addNewSheet(title) {
+    await doc.addSheet({title: title}) 
 }
 
 // Load sheet by index of rows
@@ -77,7 +84,25 @@ async function addMultipleData(data) {
     }
 }
 
-async function insertScrapedData(obj, scope) {
+// Fetch all rows from spread sheet by specifying sheet index
+async function fetchAllSheetData(scope = 0) {
+    await googleFetchInfo()
+    await loadSheetByIndex(scope)
+    try {
+        const rows = await sheet.getRows();
+        // This woll populate sheet.headerValues
+        await sheet.loadHeaderRow();
+        const header = sheet.headerValues
+        return {rows, header}
+    }
+    catch (err) {
+        throw new Error(err)
+    }
+    
+}
+
+// Insert Scraped data into sheet
+async function insertScrapedData(obj, scope = 0) {
     try {
         await googleFetchInfo()
         await loadSheetByIndex(scope)
@@ -89,4 +114,13 @@ async function insertScrapedData(obj, scope) {
     }
 }
 
-module.exports = { googleFetchInfo, loadSheetByIndex, loadSheetById, addData, insertScrapedData, setSheetHeader }
+module.exports = { 
+    googleFetchInfo,
+    addNewSheet,
+    loadSheetByIndex, 
+    loadSheetById, 
+    setSheetHeader, 
+    addData, 
+    fetchAllSheetData, 
+    insertScrapedData
+}
