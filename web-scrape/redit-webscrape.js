@@ -30,7 +30,9 @@ function fetchReditNews() {
 
             return newsHeadLines;
         })
-        .catch(err => console.log(err))
+        .catch(err => {
+            throw new Error(err)
+        })
 }
 
 module.exports = fetchReditNews;
