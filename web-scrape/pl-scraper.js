@@ -28,7 +28,9 @@ function plScrape() {
             return topPremierLeagueScorers;
     
         })
-        .catch(err => console.log(err))
+        .catch(err => {
+            throw new Error(err)
+        })
 }
 
 module.exports = plScrape;

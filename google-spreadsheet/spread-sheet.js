@@ -20,6 +20,7 @@ async function googleFetchInfo() {
 
 //Add new sheet
 async function addNewSheet(title) {
+    await googleFetchInfo()
     await doc.addSheet({title: title}) 
 }
 

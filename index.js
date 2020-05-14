@@ -1,7 +1,8 @@
-const plScrape = require('./web-scrape/pl-scraper');
-const fetchReditNews = require('./web-scrape/redit');
-const { insertScrapedData, fetchAllSheetData } = require('./google-spreadsheet/spread-sheet');
-const { dbInsertMultiData, dbSeed } = require('./database/mysql');
+const plScrape = require('./web-scrape/pl-scraper')
+const nbaScrape = require('./web-scrape/nba-scraper')
+const fetchReditNews = require('./web-scrape/redit-webscrape')
+const { insertScrapedData, fetchAllSheetData, addNewSheet } = require('./google-spreadsheet/spread-sheet')
+const { dbInsertMultiData, dbSeed } = require('./database/mysql')
 
 let scope = 0
 let sheetHeader = ''
@@ -21,17 +22,42 @@ function plWebScrape() {
     })
 }
 
+function nbaWebScrape() {
+    try{
+         nbaScrape()
+            .then(async res => {
+                const sheetName = 'NBA-player-ranking'
+                await addNewSheet(sheetName)
+                scope = 2
+                sheetHeader = ['rank', 'name', 'url', 'score', 'FG', 'Three', 'FT']
+                const obj = {header: sheetHeader, data: res}
+                insertScrapedData(obj, scope) 
+            })
+            .catch(err => {
+                throw new Error(err)
+            })
+
+    }
+    catch(err) {
+        throw new Error(err)
+    }
+}
+
 // Web Scraping for dynamic web page
 async function reditWebScarpe() {
     try {
-        const data = await fetchReditNews();
-        if(data) {
-            // Scope is reference for choosing spread sheet.
-            scope = 0
-            sheetHeader = ['title', 'url']
-            const obj = {header: sheetHeader, data: data}
-            insertScrapedData(obj, scope)
-        }
+        fetchReditNews()
+            .then(res => {
+                // Scope is reference for choosing spread sheet.
+                scope = 0
+                sheetHeader = ['title', 'url']
+                const obj = {header: sheetHeader, data: res}
+                insertScrapedData(obj, scope) 
+            })
+            .catch(err => {
+                throw new Error(err)
+            })
+
     }
     catch(err) {
         throw new Error(err)
@@ -81,4 +107,5 @@ function formatDbData(data) {
 // plWebScrape();
 // reditWebScarpe();
 // dbInitialSeed()
-saveSheetDataToDB()
+nbaWebScrape()
+// saveSheetDataToDB()
