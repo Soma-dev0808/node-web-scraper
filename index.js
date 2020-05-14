@@ -1,111 +1,132 @@
-const plScrape = require('./web-scrape/pl-scraper')
-const nbaScrape = require('./web-scrape/nba-scraper')
-const fetchReditNews = require('./web-scrape/redit-webscrape')
-const { insertScrapedData, fetchAllSheetData, addNewSheet } = require('./google-spreadsheet/spread-sheet')
-const { dbInsertMultiData, dbSeed } = require('./database/mysql')
+const express = require('express')
+const app = express()
+const {
+    addSheet,
+    plWebScrape,
+    nbaWebScrape,
+    reditWebScarpe,
+    dbInitialSeed,
+    saveSheetDataToDB
+} = require('./service/service')
 
-let scope = 0
-let sheetHeader = ''
+const port = process.env.PORT || 8080;
+const scope = ['redit_news', 'soccer_player_ranking', 'nba_player_ranking']
 
-// Web scrape for static web page
-function plWebScrape() {
-    plScrape().then(async res => {
-        if(res) {
-            scope = 1
-            sheetHeader = ['rank', 'name', 'nationality', 'goals']
-            const obj = {header: sheetHeader, data: res}
-            insertScrapedData(obj, scope)
-        }
-    })
-    .catch(err => {
-        throw new Error(err)
-    })
-}
+app.listen(port, () => {
+    console.log('Listening port' , port)
+})
 
-function nbaWebScrape() {
-    try{
-         nbaScrape()
-            .then(async res => {
-                const sheetName = 'NBA-player-ranking'
-                await addNewSheet(sheetName)
-                scope = 2
-                sheetHeader = ['rank', 'name', 'url', 'score', 'FG', 'Three', 'FT']
-                const obj = {header: sheetHeader, data: res}
-                insertScrapedData(obj, scope) 
-            })
-            .catch(err => {
-                throw new Error(err)
-            })
+app.get('/', (res, req) => {
+    console.log('accessed')
+})
 
-    }
-    catch(err) {
-        throw new Error(err)
-    }
-}
-
-// Web Scraping for dynamic web page
-async function reditWebScarpe() {
+// Add db tables first before save data into db
+app.get('/db-seed', async (req, res) => {
     try {
-        fetchReditNews()
-            .then(res => {
-                // Scope is reference for choosing spread sheet.
-                scope = 0
-                sheetHeader = ['title', 'url']
-                const obj = {header: sheetHeader, data: res}
-                insertScrapedData(obj, scope) 
-            })
-            .catch(err => {
-                throw new Error(err)
-            })
-
+        await dbInitialSeed()
+        res.json({
+            status : 'Success fully seeded!!'
+        })
     }
     catch(err) {
+        res.json({
+            status: 'Error'
+        })
         throw new Error(err)
     }
-}
+})
 
-// Create db and table
-async function dbInitialSeed() {
-    const dbName = 'web_scrape'
-    const stmt = 'CREATE TABLE IF NOT EXISTS test(id int NOT NULL AUTO_INCREMENT, title varchar(255), url varchar(2083), updated_at TIMESTAMP NOT NULL DEFAULT NOW(), created_at TIMESTAMP NOT NULL, PRIMARY KEY(id));'
-    dbSeed(dbName, stmt)
-}
+// add sheet before web scraping 
+app.get('/add-sheeet/:scope', async (req, res) => {
+    try {
+        // scope: 0. news, 1. soccer, 2. nba
+        const scopeIndex = req.params.scope
+        if(scopeIndex >= 3) {
+            res.json({
+                status: 'Error'
+            })
+        }
+        await addSheet(scope[scopeIndex])
+        res.json({
+            status: 'Success fully Sheet added!!',
+        })
+    }
+    catch(err) {
+        res.json({
+            status: 'Error'
+        })
+        throw new Error(err)
+    }
+})
 
-// Save data from spread sheet
-async function saveSheetDataToDB() {
-    let data = await fetchAllSheetData()
-    let insertData = formatDbData(data)
-    let tableName = 'news'
-    let stmtInfo = { table: tableName , tableInfo: getTableInfo(data.header)}
+// Web scrape for redit news 
+app.get('/redit-news', async (req, res) => {
+    try {
+        await reditWebScarpe()
+        res.json({
+            status : 'Success fully scraped!!'
+        })
+    }
+    catch(err) {
+        res.json({
+            status: 'Error'
+        })
+        throw new Error(err)
+    }
+})
 
-    dbInsertMultiData(insertData, stmtInfo);
-}
+// Web scrape for soccer player ranking
+app.get('/soccer', async (req, res) => {
+    try {
+        await plWebScrape()
+        res.json({
+            status : 'Success fully scraped!!'
+        })
+    }
+    catch(err) {
+        res.json({
+            status: 'Error'
+        })
+        throw new Error(err)
+    }
+})
 
-// Spread sheet header and db table columns must be match
-function getTableInfo(header) {
-    let tableInfo = ''
-    header.map(h => tableInfo +=  h + ', ')
-    return tableInfo
-}
+// Web scrape for nba player ranking
+app.get('/nba', async (req, res) => {
+    try {
+        await nbaWebScrape()
+        res.json({
+            status : 'Success fully scraped!!'
+        })
+    }
+    catch(err) {
+        res.json({
+            status: 'Error'
+        })
+        throw new Error(err)
+    }
+})
 
-// Format spread sheet data for db table
-function formatDbData(data) {
-    let dateTime = new Date()
-    let insertData = []
-    let childData = []
-    // Data for db has to be in array which fits for table
-    data.rows.map(v => {
-        data.header.map(h => childData.push(v[h]))
-        // Add updated_at, created_at
-        childData.push(dateTime, dateTime)
-        insertData.push(childData)
-        childData = []
-    })
-    return insertData
-}
-
-// plWebScrape();
-// reditWebScarpe();
-// dbInitialSeed()
-nbaWebScrape()
-// saveSheetDataToDB()
+// insert web scraped data from sprad sheet
+app.get('/db-insert/:scope', async (req, res) => {
+    try {
+        // scope: 0. news, 1. soccer, 2. nba
+        const scopeIndex = req.params.scope
+        if(scopeIndex >= 3) {
+            res.json({
+                status: 'Error'
+            })
+            return
+        }
+        await saveSheetDataToDB(scope[scopeIndex])
+        res.json({
+            status : 'Success fully inserted!!'
+        })
+    }
+    catch(err) {
+        res.json({
+            status: 'Error'
+        })
+        throw new Error(err)
+    }
+})

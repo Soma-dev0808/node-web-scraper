@@ -7,7 +7,7 @@ let sheet = null
 let sheetHeader = null
 
 // Load sheet info by sheet id from spread sheet url
-async function googleFetchInfo() {
+async function googleFetchInfo() {    
     doc = new GoogleSpreadsheet(process.env.SPREAD_SHEET);
     try {
         await doc.useServiceAccountAuth(require('../client_secret.json'))
@@ -20,8 +20,14 @@ async function googleFetchInfo() {
 
 //Add new sheet
 async function addNewSheet(title) {
-    await googleFetchInfo()
-    await doc.addSheet({title: title}) 
+    try {
+        await googleFetchInfo()
+        await doc.addSheet({title: title})
+        return doc.sheetsByIndex
+    }
+    catch(err) {
+        throw new Error(err)
+    }
 }
 
 // Load sheet by index of rows
@@ -85,10 +91,27 @@ async function addMultipleData(data) {
     }
 }
 
+async function getSheetIndex(scope) {
+    try {
+        const sheets = doc.sheetsByIndex
+        let index = null
+        sheets.map(sheet => {
+            if(scope === sheet.title) index = sheet.index
+        })
+        if(index === null) throw new Error('Sheet Not found')
+
+        return index
+    }
+    catch(err) {
+        throw new Error(err)
+    }
+}
+
 // Fetch all rows from spread sheet by specifying sheet index
-async function fetchAllSheetData(scope = 0) {
+async function fetchAllSheetData(scope = 'redit_news') {
     await googleFetchInfo()
-    await loadSheetByIndex(scope)
+    const index = await getSheetIndex(scope)
+    await loadSheetByIndex(index)
     try {
         const rows = await sheet.getRows();
         // This woll populate sheet.headerValues
@@ -99,14 +122,14 @@ async function fetchAllSheetData(scope = 0) {
     catch (err) {
         throw new Error(err)
     }
-    
 }
 
 // Insert Scraped data into sheet
-async function insertScrapedData(obj, scope = 0) {
+async function insertScrapedData(obj, scope = 'redit_news') {
     try {
         await googleFetchInfo()
-        await loadSheetByIndex(scope)
+        const index = await getSheetIndex(scope)
+        await loadSheetByIndex(index)
         await setSheetHeader(obj.header)
         await addMultipleData(obj.data)
     }
